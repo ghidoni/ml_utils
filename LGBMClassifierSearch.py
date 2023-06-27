@@ -49,6 +49,7 @@ class LGBMClassifierSearch:
                 cv=self.folds.split(X, y),
                 scoring="roc_auc",
                 n_jobs=-1,
+                return_train_score=True,
             )
         elif self.search_type == "random":
             self.search = RandomizedSearchCV(
@@ -57,6 +58,7 @@ class LGBMClassifierSearch:
                 cv=self.folds.split(X, y),
                 scoring="roc_auc",
                 n_jobs=-1,
+                return_train_score=True,
             )
         else:
             raise ValueError("search_type must be 'grid' or 'random'")
@@ -71,6 +73,8 @@ class LGBMClassifierSearch:
 
         if callbacks is None:
             callbacks = [lgb.record_evaluation(self.eval_results)]
+        else:
+            callbacks.append(lgb.record_evaluation(self.eval_results))
 
         self.search.fit(
             X,
@@ -80,9 +84,13 @@ class LGBMClassifierSearch:
             callbacks=callbacks,
         )
 
-        # self.train_score = self.search.cv_results_["mean_train_score"]
-        # self.test_score = self.search.cv_results_["mean_test_score"]
-        # self.best_params = self.search.best_params_
+        self.train_score = self.search.cv_results_["mean_train_score"][
+            self.search.best_index_
+        ]
+        self.test_score = self.search.cv_results_["mean_test_score"][
+            self.search.best_index_
+        ]
+        self.best_params = self.search.best_params_
         # y_pred_proba = self.search.predict_proba(X)[:, 1]
         # self.gini = 2 * roc_auc_score(y, y_pred_proba) - 1
         return self
@@ -111,3 +119,9 @@ class LGBMClassifierSearch:
         ax = lgb.plot_metric(self.eval_results, metric=metric, figsize=(10, 8))
         ax.set_title(f"{metric} over iterations")
         plt.show()
+
+    # def plot_first_tree(self, tree_index=0, figsize=(8, 6)):
+    #     ax = lgb.create_tree_digraph(
+    #         self.search.best_estimator_, tree_index=tree_index, figsize=figsize
+    #     )
+    #     plt.show()
