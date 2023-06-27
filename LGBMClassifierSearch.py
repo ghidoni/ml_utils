@@ -30,7 +30,7 @@ class LGBMClassifierSearch:
         self.train_score = None
         self.test_score = None
         self.gini = None
-        self.eval_results = None
+        self.eval_results = {}
 
     def fit(
         self,
@@ -68,6 +68,9 @@ class LGBMClassifierSearch:
         #     valid_sets = []
         #     for valid_x, valid_y in eval_set:
         #         valid_sets.append((valid_x, valid_y))
+
+        if callbacks is None:
+            callbacks = [lgb.record_evaluation(self.eval_results)]
 
         self.search.fit(
             X,
