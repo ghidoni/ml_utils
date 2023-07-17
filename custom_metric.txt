@@ -1,0 +1,5 @@
+alpha=3
+beta=0.1
+
+custom_metric = alpha*val_score - beta*abs(train_score - val_score)
+custom_metric = 3*val_score - 0.1*abs(train_score - val_score)
