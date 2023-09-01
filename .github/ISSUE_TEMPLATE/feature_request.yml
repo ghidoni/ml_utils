@@ -3,4 +3,7 @@ description: "Reportar um feature encontrado."
 title: "[feature] ALTERAR para nome do bug que está reportando"
 labels: ["feature"]
 
-<!-- Describe the feature you'd like. -->
+body:
+  - type: markdown
+    attributes:
+      value: <!-- Describe the feature you'd like. -->
