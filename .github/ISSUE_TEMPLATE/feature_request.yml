@@ -4,6 +4,11 @@ title: "[feature] ALTERAR para nome do bug que está reportando"
 labels: ["feature"]
 
 body:
-  - type: markdown
+  - type: textarea
+    id: description
     attributes:
-      value: <!-- Describe the feature you'd like. -->
+      label: Descricao
+      description: Descreva o feature encontrado.
+      placeholder: "Ex: funcao que recebe X e retorna Y."
+    validations:
+      required: true
