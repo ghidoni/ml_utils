@@ -1,0 +1,40 @@
+name: "Bug Report"
+description: "Reportar um bug encontrado."
+title: "[BUG] ALTERAR para nome do bug que está reportando"
+labels: ["bug"]
+assignees:
+  - ${{github.author}}
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar um bug encontrado no **${{github.repository}}**.
+        Por favor, preencha o formulário abaixo, e se possível, anexe um print do erro para que possamos corrigir o bug o mais rápido possível.
+
+  - type: input
+    id: module
+    attributes:
+      label: Módulo
+      description: Módulo onde o bug foi encontrado.
+      placeholder: Ex: Connections, Inference, Modeling, etc.
+    validations:
+      required: true
+  
+  - type: input
+    id: version
+    attributes:
+      label: Versão
+      description: Versão do MLTools onde o bug foi encontrado.
+      placeholder: Ex: 2.0.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descrição
+      description: Descreva o bug encontrado.
+      placeholder: Ex: Ao usar função X, acontece o erro Y.
+    validations:
+      required: true
