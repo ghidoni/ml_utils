@@ -17,16 +17,16 @@ body:
     attributes:
       label: Módulo
       description: Módulo onde o bug foi encontrado.
-      placeholder: Ex: Connections, Inference, Modeling, etc.
+      placeholder: "Ex: Connections, Inference, Modeling, etc."
     validations:
       required: true
-  
+
   - type: input
     id: version
     attributes:
       label: Versão
       description: Versão do MLTools onde o bug foi encontrado.
-      placeholder: Ex: 2.0.0
+      placeholder: "Ex: 2.0.0"
     validations:
       required: true
 
@@ -35,6 +35,6 @@ body:
     attributes:
       label: Descrição
       description: Descreva o bug encontrado.
-      placeholder: Ex: Ao usar função X, acontece o erro Y.
+      placeholder: "Ex: Ao usar função X, acontece o erro Y."
     validations:
       required: true
