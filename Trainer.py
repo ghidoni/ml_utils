@@ -23,18 +23,26 @@ class Trainer:
         params = {
             "objective": "binary",
             "metric": "auc",
-            "verbosity": -1,
+            # "verbosity": -1,
             "boosting_type": "gbdt",
-            "max_depth": trial.suggest_int("max_depth", 2, 5, step=1),
+            "max_depth": trial.suggest_int("max_depth", 2, 3),
             "learning_rate": trial.suggest_float(
                 "learning_rate", 0.01, 0.1, log=True
             ),
-            "num_leaves": trial.suggest_int("num_leaves", 2, 32, step=2),
-            "max_bin": trial.suggest_int("max_bin", 50, 250, step=50),
+            "n_estimators": 20,
+            "num_leaves": trial.suggest_int("num_leaves", 2, 10),
+            "max_bin": trial.suggest_int("max_bin", 50, 250),
+            "reg_alpha": trial.suggest_float("reg_alpha", 0.01, 5.0, log=True),
+            "reg_lambda": trial.suggest_float(
+                "reg_lambda", 0.01, 5.0, log=True
+            ),
+            "min_child_samples": trial.suggest_int(
+                "min_child_samples", 200, 2000
+            ),
         }
 
         model = lgb.LGBMClassifier(
-            **params, random_state=8, importance_type="gain"
+            **params, random_state=8, importance_type="gain", verbosity=-1
         )
 
         opt_callback = optuna.integration.LightGBMPruningCallback(
@@ -57,8 +65,8 @@ class Trainer:
 
         cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=8)
         mod_callbacks = [
-            lgb.early_stopping(10),
-            # lgb.log_evaluation(period=100),
+            lgb.early_stopping(3, min_delta=0.001),
+            lgb.log_evaluation(period=100),
         ]
 
         if callback is not None:
@@ -93,13 +101,28 @@ class Trainer:
 
         return score_train_mean, score_valid_mean
 
-    def tuner(self):
+    def tuner(self, n_trials=10):
         # TODO: add plot of metrics(maybe it's not needed and too complex)
         # TODO: add tracking with MLflow
 
+        mlflc = optuna.integration.MLflowCallback(
+            tracking_uri="sqlite:///mlruns.db",
+            metric_name="metric",
+        )
+
+        optuna.logging.set_verbosity(optuna.logging.ERROR)
         sampler = optuna.samplers.TPESampler(seed=8)
-        self.study = optuna.create_study(direction="maximize", sampler=sampler)
-        self.study.optimize(self.objective_optuna, n_trials=10)
+        self.study = optuna.create_study(
+            direction="maximize",
+            sampler=sampler,
+            pruner=optuna.pruners.HyperbandPruner(),
+        )
+        self.study.optimize(
+            self.objective_optuna,
+            n_trials=n_trials,
+            show_progress_bar=True,
+            callbacks=[mlflc],
+        )
 
         self.eval_df = pd.DataFrame(
             self.eval_results,
