@@ -3,12 +3,15 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import roc_auc_score
 from joblib import Parallel, delayed
+import mlflow
 
 
 class Trainer:
-    def __init__(self, df, features, target):
-        self.df = df
+    def __init__(self, df_train, df_test, features, target):
+        self.df = df_train
+        self.df_test = df_test
         self.features = features
         self.target = target
         self.eval_results = []
@@ -18,6 +21,12 @@ class Trainer:
         alpha = 3
         beta = 0.1
         return alpha * valid - beta * abs(train - valid)
+
+    def gini(self, y_true, y_pred):
+        return 2 * roc_auc_score(y_true, y_pred) - 1
+
+    def auc(self, y_true, y_pred):
+        return roc_auc_score(y_true, y_pred)
 
     def objective_optuna(self, trial):
         params = {
@@ -101,21 +110,26 @@ class Trainer:
 
         return score_train_mean, score_valid_mean
 
-    def tuner(self, n_trials=10):
+    def tuner(self, n_trials=10, name=None, tracking=False, tracking_uri=None):
         # TODO: add plot of metrics(maybe it's not needed and too complex)
         # TODO: add tracking with MLflow
 
-        mlflc = optuna.integration.MLflowCallback(
-            tracking_uri="sqlite:///mlruns.db",
-            metric_name="metric",
-        )
+        if tracking:
+            mlflc = optuna.integration.MLflowCallback(
+                tracking_uri=tracking_uri,
+                metric_name="metric",
+            )
+        else:
+            mlflc = None
 
         optuna.logging.set_verbosity(optuna.logging.ERROR)
         sampler = optuna.samplers.TPESampler(seed=8)
         self.study = optuna.create_study(
+            study_name=name,
             direction="maximize",
             sampler=sampler,
             pruner=optuna.pruners.HyperbandPruner(),
+            load_if_exists=True,
         )
         self.study.optimize(
             self.objective_optuna,
@@ -131,13 +145,63 @@ class Trainer:
 
         return self.study
 
-    def final_model(self):
+    def train_final_model(self, model):
+        tr_model = model.fit(self.df[self.features], self.df[self.target])
+
+        proba_train = tr_model.predict_proba(self.df[self.features])[:, 1]
+        proba_test = tr_model.predict_proba(self.df_test[self.features])[:, 1]
+
+        return tr_model, proba_train, proba_test
+
+    def final_model(
+        self, name=None, run_name=None, tracking=False, tracking_uri=None
+    ):
         # TODO: add tracking with MLflow
 
         final_params = self.study.best_params
         self.final_model = lgb.LGBMClassifier(
             **final_params, random_state=8, importance_type="gain"
         )
-        self.final_model.fit(self.df[self.features], self.df[self.target])
+
+        if tracking:
+            mlflow.set_tracking_uri(tracking_uri)
+            mlflow.set_experiment(name)
+
+            with mlflow.start_run():
+                for key, value in final_params.items():
+                    mlflow.log_param(key, value)
+
+                (
+                    self.final_model,
+                    proba_train,
+                    proba_test,
+                ) = self.train_final_model(self.final_model)
+
+                self.gini_train = self.gini(self.df[self.target], proba_train)
+                self.gini_test = self.gini(
+                    self.df_test[self.target], proba_test
+                )
+                self.metric = self.custom_metric(
+                    self.auc(self.df[self.target], proba_train),
+                    self.auc(self.df_test[self.target], proba_test),
+                )
+
+                mlflow.log_metric("gini_train", self.gini_train)
+                mlflow.log_metric("gini_test", self.gini_test)
+                mlflow.log_metric("metric", self.metric)
+
+                mlflow.set_tag("mlflow.runName", run_name)
+
+        else:
+            self.final_model, proba_train, proba_test = self.train_final_model(
+                self.final_model
+            )
+
+            self.gini_train = self.gini(self.df[self.target], proba_train)
+            self.gini_test = self.gini(self.df_test[self.target], proba_test)
+            self.metric = self.custom_metric(
+                self.auc(self.df[self.target], proba_train),
+                self.auc(self.df_test[self.target], proba_test),
+            )
 
         return self.final_model
