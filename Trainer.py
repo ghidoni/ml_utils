@@ -1,5 +1,6 @@
 import optuna
 import lightgbm as lgb
+import optuna.integration.lightgbm as lgb_opt
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
@@ -32,7 +33,7 @@ class Trainer:
         params = {
             "objective": "binary",
             "metric": "auc",
-            # "verbosity": -1,
+            "verbosity": -1,
             "boosting_type": "gbdt",
             "max_depth": trial.suggest_int("max_depth", 2, 3),
             "learning_rate": trial.suggest_float(
